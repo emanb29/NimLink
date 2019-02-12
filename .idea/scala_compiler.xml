@@ -2,5 +2,10 @@
 <project version="4">
   <component name="ScalaCompilerConfiguration">
     <profile name="sbt 1" modules="nimlink" />
+    <profile name="sbt 2" modules="NimLink">
+      <parameters>
+        <parameter value="-Ypartial-unification" />
+      </parameters>
+    </profile>
   </component>
 </project>
