@@ -9,13 +9,13 @@ object Main extends App {
     override type Other = Attacker
   }
 
-  sealed trait BADTree[T <: Player]
+  sealed trait BADTree[T <: Player] // it means Binary Attack-Defense Tree, dammit!
 
   final case class Action[T <: Player](/* TODO action details -- cost, probability */) extends BADTree[T]
   final case class Conj[T <: Player](left: BADTree[T], right: BADTree[T]) extends BADTree[T]
   final case class Disj[T <: Player](left: BADTree[T], right: BADTree[T]) extends BADTree[T]
-  final case class Counter[T <: Player](blocked: BADTree[T]) extends BADTree[T#Other]
-  final case class Complement[T <: Player](blocked: BADTree[T]) extends BADTree[T#Other]
+  final case class Neg[T <: Player](blocked: BADTree[T]) extends BADTree[T] // invert goal (eg maximize -> minimize)
+  final case class Complement[T <: Player](blocked: BADTree[T]) extends BADTree[T#Other] // invert goal and switch player
   final case object TRUE extends BADTree[Player] // trivially-successful action [Asl16]
   final case object FALSE extends BADTree[Player] // trivially-failed action [Asl16]
 
