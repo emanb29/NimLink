@@ -68,7 +68,6 @@ object Main extends App {
     Complement(t2)
   )
 
-
   val tree = Disj(bribe, Disj(t, Disj(b, trick)))
   val probabilities: Map[Action[Player], (Double, Double)] = Map(
     is -> (0.2, 0.8),
@@ -83,6 +82,20 @@ object Main extends App {
     im -> (0, 0.5),
     ot -> (0, 0.6),
     t2 -> (0.1, 0.4)
+  )
+  val costs: Map[Action[Player], Double] = Map(
+    is -> 80,
+    bs -> 100,
+    t1 -> 0,
+    tf -> 0,
+    t -> 160,
+    b -> 150,
+    st -> 50,
+    at -> 0,
+    ba -> 85,
+    im -> 70,
+    ot -> 0,
+    t2 -> 0
   )
 
   println(tree)
@@ -118,7 +131,7 @@ object Main extends App {
     * @tparam T the type/proponent of the tree -- by root node
     * @return The boolean analysis/evaluation of the tree
     */
-  def boolAnalyze[T <: Player](tree: BADTree[T], actionBooleanVals: Map[Action[Player], Boolean]): Boolean = tree match {
+  def boolAnalyze[T <: Player](tree: BADTree[T], actionBooleanVals: Action[Player] => Boolean): Boolean = tree match {
     case a@Action(_) => actionBooleanVals(a) // this is "m" in the literature
     case Conj(left, right) => boolAnalyze(left, actionBooleanVals) && boolAnalyze(right, actionBooleanVals)
     case Disj(left, right) => boolAnalyze(left, actionBooleanVals) || boolAnalyze(right, actionBooleanVals)
@@ -194,7 +207,7 @@ object Main extends App {
     * @tparam T the type/proponent of the tree -- by root node
     * @return A pair of the minimum and maximum possible success values of the goal of the proponent (T)
     */
-  def algProbEval[T <: Player](tree: BADTree[T], successChance: Map[Action[Player], (Double, Double)]): (Double, Double) = {
+  def algProbEval[T <: Player](tree: BADTree[T], successChance: Action[Player] => (Double, Double)): (Double, Double) = {
     val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
 
     def recursiveAssist(subtree: BADTree[T]): (Double, Double) = subtree match {
