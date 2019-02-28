@@ -1,3 +1,5 @@
+import java.util.UUID
+
 import cats._
 import cats.instances._
 import cats.implicits._
@@ -18,8 +20,11 @@ object Main extends App {
 
   sealed trait BADTree[+T <: Player] // it means Binary Attack-Defense Tree, dammit!
 
-  final case class Action[+T <: Player](name: String = "" /* TODO action details -- cost, probability */) extends BADTree[T] {
+  final case class Action[+T <: Player](name: String = "") extends BADTree[T] {
     override def toString: String = name
+
+    private val uuid: UUID = UUID.randomUUID()
+    override def equals(obj: Any): Boolean = super.equals(obj) && uuid == obj.asInstanceOf[Action[T]].uuid
   }
 
   // T <: Player so Action[T] should be upcast to Action[Player] safely
@@ -100,11 +105,12 @@ object Main extends App {
 
   println(tree)
   println(allActionsInTree(tree))
-  println(algBoolEval(tree))
-  println(algProbEval(tree, probabilities))
+  println(algBoolEval(tree)) // should be false, true
+  println(algProbEval(tree, probabilities)) // should be 0, 0.97
 
   /** *
     * Pull out all basic actions from a tree into a pair of lists of actions: those of the proponent, and those of the opponent
+    * NOTE: for linear trees, we could just use a pair of sets, since that's precisely the linear property
     *
     * @param tree
     * @tparam T
