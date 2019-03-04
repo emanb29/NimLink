@@ -172,7 +172,9 @@ object Main extends App {
     * @tparam T the type/proponent of the tree -- by root node
     * @return A pair of the minimum and maximum possible success values of the goal of the proponent (T)
     */
-  def algBoolEval[T <: Player](tree: BADTree[T]): (Boolean, Boolean) = { // TODO rewrite as a special case of algProbEval
+  def algBoolEval[T <: Player](tree: BADTree[T]): (Boolean, Boolean) = algProbEval(tree, _ => (0, 1)).bimap(_.round == 1, _.round == 1)
+
+/*  {
     val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
 
     def recursiveAssist(subtree: BADTree[T]): (Boolean, Boolean) = subtree match {
@@ -185,14 +187,14 @@ object Main extends App {
       case Disj(left, right) =>
         val ((min1, max1), (min2, max2)) = (recursiveAssist(left), recursiveAssist(right))
         (min1 || min2, max1 || max2)
-      case Neg(inner) => recursiveAssist(inner).map(b => !b) // TODO verify this applies the map to both elems
-      case Complement(inner) => algBoolEval(inner).map(b => !b) // TODO verify this applies the map to both elems
+      case Neg(inner) => recursiveAssist(inner).bimap(b => !b, b => !b) // TODO verify this applies the map to both elems
+      case Complement(inner) => algBoolEval(inner).bimap(b => !b, b => !b) // TODO verify this applies the map to both elems
       case TRUE => (true, true)
       case FALSE => (false, false)
     }
 
     recursiveAssist(tree)
-  }
+  }*/
 
   /** *
     * Algorithmically evaluate a tree probabilistically
@@ -227,12 +229,13 @@ object Main extends App {
         val ((min1, max1), (min2, max2)) = (recursiveAssist(left), recursiveAssist(right))
         (1 - (1 - min1) * (1 - min2),
           1 - (1 - max1) * (1 - max2))
-      case Neg(inner) => recursiveAssist(inner).map(p => 1 - p) // TODO verify this applies the map to both elems
-      case Complement(inner) => algProbEval(inner, successChance).map(p => 1 - p) // TODO do I need to invert all success chances?
+      case Neg(inner) => recursiveAssist(inner).bimap(1 - _, 1 - _)
+      case Complement(inner) => algProbEval(inner, successChance).bimap(1 - _, 1 - _)
       case TRUE => (1, 1)
       case FALSE => (0, 0)
     }
 
     recursiveAssist(tree)
   }
+
 }
