@@ -24,6 +24,7 @@ object Main extends App {
     override def toString: String = name
 
     private val uuid: UUID = UUID.randomUUID()
+
     override def equals(obj: Any): Boolean = super.equals(obj) && uuid == obj.asInstanceOf[Action[T]].uuid
   }
 
@@ -193,8 +194,8 @@ object Main extends App {
       case FALSE => (false, false)
     }
 
-    recursiveAssist(tree)
-  }*/
+      recursiveAssist(tree)
+    }*/
 
   /** *
     * Algorithmically evaluate a tree probabilistically
@@ -236,6 +237,43 @@ object Main extends App {
     }
 
     recursiveAssist(tree)
+  }
+
+  /**
+    * Find dominating strategies by selecting only the elements of the set Z with a high first value or a low second value
+    *
+    * @param Z the set to assess
+    * @param O an ordering of Decider elements -- should be provided by default by scala
+    * @tparam Decider the type that will be used to determine if/when an action gets taken. Boolean for the boolean case and Double for the probabilistic case.
+    * @return
+    */
+  def MRMaxMin[Decider](Z: Set[(Decider, Double)])(implicit O: Ordering[Decider]): Set[(Decider, Double)] =
+    for {
+      (x1, y1) <- Z
+      (x2, y2) <- Z
+      if (O.gteq(x1, x2) || y1 < y2) && (O.gt(x1, x2) || y2 <= y2)
+    } yield (x1, y1)
+
+  /**
+    * Find dominated strategies by selecting only the elements of the set Z with a low first value or a low second value
+    *
+    * @param Z the set to assess
+    * @param O an ordering of Decider elements -- should be provided by default by scala
+    * @tparam Decider
+    * @return
+    */
+  def MRMinMin[Decider](Z: Set[(Decider, Double)])(implicit O: Ordering[Decider]): Set[(Decider, Double)] =
+    for {
+      (x1, y1) <- Z
+      (x2, y2) <- Z
+      if (O.lteq(x1, x2) || y1 < y2) && (O.lt(x1, x2) || y2 <= y2)
+    } yield (x1, y1)
+
+
+  def algBoolEvalWithCost[T <: Player](tree: BADTree[T], cost: Action[Player] => Double)
+  : (Set[(Boolean, Double)], Set[(Boolean, Double)]) = {
+    // TODO
+    ???
   }
 
 }
