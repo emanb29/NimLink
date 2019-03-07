@@ -108,7 +108,10 @@ object Main extends App {
   println(allActionsInTree(tree))
   println(algBoolEval(tree)) // should be false, true
   println(algProbEval(tree, probabilities)) // should be 0, 0.97
+  println(algBoolEvalWithCost(tree, costs)) // should be ???
 
+
+  println(algProbEvalWithCost(tree, probabilities, costs)) // should be 0, 0.97
   /** *
     * Pull out all basic actions from a tree into a pair of lists of actions: those of the proponent, and those of the opponent
     * NOTE: for linear trees, we could just use a pair of sets, since that's precisely the linear property
@@ -175,28 +178,6 @@ object Main extends App {
     */
   def algBoolEval[T <: Player](tree: BADTree[T]): (Boolean, Boolean) = algProbEval(tree, _ => (0, 1)).bimap(_.round == 1, _.round == 1)
 
-  /*  {
-      val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
-
-      def recursiveAssist(subtree: BADTree[T]): (Boolean, Boolean) = subtree match {
-        case a@Action(_) if propActs.contains(a) => (false, true)
-        case a@Action(_) if oppActs.contains(a) => (true, false)
-        case a@Action(_) => throw new MatchError("Unexpected match error in algBoolEval recursion -- basic Action in neither propActs nor oppActs")
-        case Conj(left, right) =>
-          val ((min1, max1), (min2, max2)) = (recursiveAssist(left), recursiveAssist(right))
-          (min1 && min2, max1 && max2)
-        case Disj(left, right) =>
-          val ((min1, max1), (min2, max2)) = (recursiveAssist(left), recursiveAssist(right))
-          (min1 || min2, max1 || max2)
-        case Neg(inner) => recursiveAssist(inner).bimap(b => !b, b => !b) // TODO verify this applies the map to both elems
-        case Complement(inner) => algBoolEval(inner).bimap(b => !b, b => !b) // TODO verify this applies the map to both elems
-        case TRUE => (true, true)
-        case FALSE => (false, false)
-      }
-
-      recursiveAssist(tree)
-    }*/
-
   /** *
     * Algorithmically evaluate a tree probabilistically
     *
@@ -248,11 +229,10 @@ object Main extends App {
     * @return
     */
   def MRMaxMin[Decider](Z: Set[(Decider, Double)])(implicit O: Ordering[Decider]): Set[(Decider, Double)] =
-    for {
-      (x1, y1) <- Z
-      (x2, y2) <- Z
-      if (O.gteq(x1, x2) || y1 < y2) && (O.gt(x1, x2) || y2 <= y2)
-    } yield (x1, y1)
+    Z.filter(pair => {
+      val (x1, y1) = pair
+      (Z - pair).forall{case (x2, y2) => (O.gteq(x1, x2) || y1 < y2) && (O.gt(x1, x2) || y1 <= y2)}
+    })
 
   /**
     * Find dominated strategies by selecting only the elements of the set Z with a low first value or a low second value
@@ -263,17 +243,139 @@ object Main extends App {
     * @return
     */
   def MRMinMin[Decider](Z: Set[(Decider, Double)])(implicit O: Ordering[Decider]): Set[(Decider, Double)] =
-    for {
-      (x1, y1) <- Z
-      (x2, y2) <- Z
-      if (O.lteq(x1, x2) || y1 < y2) && (O.lt(x1, x2) || y2 <= y2)
-    } yield (x1, y1)
+    Z.filter(pair => {
+      val (x1, y1) = pair
+      (Z - pair).forall{case (x2, y2) => (O.lteq(x1, x2) || y1 < y2) && (O.lt(x1, x2) || y1 <= y2)}
+    })
 
 
   def algBoolEvalWithCost[T <: Player](tree: BADTree[T], cost: Action[Player] => Double)
   : (Set[(Boolean, Double)], Set[(Boolean, Double)]) = {
-    // TODO
-    ???
+    val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
+
+    def recursiveAssist(subtree: BADTree[T]): (Set[(Boolean, Double)], Set[(Boolean, Double)]) = subtree match {
+      case a@Action(_) if propActs.contains(a) => (
+        MRMinMin(Set((false, 0), (true, cost(a)))),
+        MRMaxMin(Set((false, 0), (true, cost(a)))),
+      )
+      case a@Action(_) if oppActs.contains(a) => (
+        MRMinMin(Set((true, 0))), // TODO is this as strictly uneccesary as it appears?
+        MRMaxMin(Set((false, 0)))
+      )
+      case a@Action(_) => throw new MatchError("Unexpected match error in algBoolEvalWithCost recursion -- basic Action in neither propActs nor oppActs")
+      case Conj(left, right) => {
+        val (leftMins, leftMaxes) = recursiveAssist(left) // this is (V_1, W_1) in Aslanyan's paper
+        val (rightMins, rightMaxes) = recursiveAssist(right) // this is (V_2, W_2) in Aslanyan's paper
+        val minSet: Set[(Boolean, Double)] = MRMinMin(for {
+          (leftActTaken, leftCost) <- leftMins
+          (rightActTaken, rightCost) <- rightMins
+        } yield (leftActTaken && rightActTaken, leftCost + rightCost))
+
+        val maxSet: Set[(Boolean, Double)] = MRMaxMin(for {
+          (leftActTaken, leftCost) <- leftMaxes
+          (rightActTaken, rightCost) <- rightMaxes
+        } yield (leftActTaken && rightActTaken, leftCost + rightCost))
+        (minSet, maxSet)
+      }
+      case Disj(left, right) => {
+        val (leftMins, leftMaxes) = recursiveAssist(left) // this is (V_1, W_1) in Aslanyan's paper
+        val (rightMins, rightMaxes) = recursiveAssist(right) // this is (V_2, W_2) in Aslanyan's paper
+        val minSet: Set[(Boolean, Double)] = MRMinMin(for {
+          (leftActTaken, leftCost) <- leftMins
+          (rightActTaken, rightCost) <- rightMins
+        } yield (leftActTaken || rightActTaken, leftCost + rightCost))
+
+        val maxSet: Set[(Boolean, Double)] = MRMaxMin(for {
+          (leftActTaken, leftCost) <- leftMaxes
+          (rightActTaken, rightCost) <- rightMaxes
+        } yield (leftActTaken || rightActTaken, leftCost + rightCost))
+        (minSet, maxSet)
+      }
+      case Neg(inner) =>
+        val (mins, maxes) = recursiveAssist(inner)
+        (
+          MRMinMin(maxes.map { case (actTaken, innerCost) => (!actTaken, innerCost) }),
+          MRMaxMin(mins.map { case (actTaken, innerCost) => (!actTaken, innerCost) }),
+        )
+      case Complement(inner) =>
+        val (mins, maxes) = algBoolEvalWithCost(inner, cost)
+        (
+          MRMinMin(maxes.map { case (actTaken, innerCost) => (!actTaken, innerCost) }),
+          MRMaxMin(mins.map { case (actTaken, innerCost) => (!actTaken, innerCost) }),
+        )
+      case TRUE => (Set((true, 0)), Set((true, 0)))
+      case FALSE => (Set((false, 0)), Set((false, 0)))
+    }
+
+    recursiveAssist(tree)
+  }
+
+
+  def algProbEvalWithCost[T <: Player](tree: BADTree[T], probabilities: Action[Player] => (Double, Double), cost: Action[Player] => Double)
+  : (Set[(Double, Double)], Set[(Double, Double)]) = {
+    val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
+
+    def recursiveAssist(subtree: BADTree[T]): (Set[(Double, Double)], Set[(Double, Double)]) = subtree match {
+      case a@Action(_) if propActs.contains(a) => (
+        MRMinMin(Set((probabilities(a)._1, 0), (probabilities(a)._2, cost(a)))),
+        MRMaxMin(Set((probabilities(a)._1, 0), (probabilities(a)._2, cost(a)))),
+      )
+      case a@Action(_) if oppActs.contains(a) => (
+        MRMinMin(Set((probabilities(a)._2, 0))), // TODO is this as strictly uneccesary as it appears?
+        MRMaxMin(Set((probabilities(a)._1, 0)))
+      )
+      case a@Action(_) => throw new MatchError("Unexpected match error in algBoolEvalWithCost recursion -- basic Action in neither propActs nor oppActs")
+      case Conj(left, right) => {
+        val (leftMins, leftMaxes) = recursiveAssist(left) // this is (V_1, W_1) in Aslanyan's paper
+        val (rightMins, rightMaxes) = recursiveAssist(right) // this is (V_2, W_2) in Aslanyan's paper
+        val minSet: Set[(Double, Double)] = MRMinMin(for {
+          (leftChance, leftCost) <- leftMins
+          (rightChance, rightCost) <- rightMins
+        } yield (leftChance * rightChance, leftCost + rightCost))
+
+        val maxSet: Set[(Double, Double)] = MRMaxMin(for {
+          (leftChance, leftCost) <- leftMaxes
+          (rightChance, rightCost) <- rightMaxes
+        } yield (leftChance * rightChance, leftCost + rightCost))
+        (minSet, maxSet)
+      }
+      case Disj(left, right) => {
+        val (leftMins, leftMaxes) = recursiveAssist(left) // this is (V_1, W_1) in Aslanyan's paper
+        val (rightMins, rightMaxes) = recursiveAssist(right) // this is (V_2, W_2) in Aslanyan's paper
+        val minSet: Set[(Double, Double)] = MRMinMin(for {
+          (leftChance, leftCost) <- leftMins
+          (rightChance, rightCost) <- rightMins
+        } yield (
+          1 - ((1 - leftChance) * (1 - rightChance)),
+          leftCost + rightCost)
+        )
+
+        val maxSet: Set[(Double, Double)] = MRMaxMin(for {
+          (leftChance, leftCost) <- leftMaxes
+          (rightChance, rightCost) <- rightMaxes
+        } yield (
+          1 - ((1 - leftChance) * (1 - rightChance)),
+          leftCost + rightCost)
+        )
+        (minSet, maxSet)
+      }
+      case Neg(inner) =>
+        val (mins, maxes) = recursiveAssist(inner)
+        (
+          MRMinMin(maxes.map { case (probability, treecost) => (1 - probability, treecost) }),
+          MRMaxMin(mins.map { case (probability, treecost) => (1 - probability, treecost) }),
+        )
+      case Complement(inner) =>
+        val (mins, maxes) = algProbEvalWithCost(inner, probabilities, cost)
+        (
+          MRMinMin(maxes.map { case (probability, treecost) => (1 - probability, treecost) }),
+          MRMaxMin(mins.map { case (probability, treecost) => (1 - probability, treecost) }),
+        )
+      case TRUE => (Set((1, 0)), Set((1, 0)))
+      case FALSE => (Set((0, 0)), Set((0, 0)))
+    }
+
+    recursiveAssist(tree)
   }
 
 }
