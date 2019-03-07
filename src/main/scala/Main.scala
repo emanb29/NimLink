@@ -175,24 +175,24 @@ object Main extends App {
     */
   def algBoolEval[T <: Player](tree: BADTree[T]): (Boolean, Boolean) = algProbEval(tree, _ => (0, 1)).bimap(_.round == 1, _.round == 1)
 
-/*  {
-    val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
+  /*  {
+      val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
 
-    def recursiveAssist(subtree: BADTree[T]): (Boolean, Boolean) = subtree match {
-      case a@Action(_) if propActs.contains(a) => (false, true)
-      case a@Action(_) if oppActs.contains(a) => (true, false)
-      case a@Action(_) => throw new MatchError("Unexpected match error in algBoolEval recursion -- basic Action in neither propActs nor oppActs")
-      case Conj(left, right) =>
-        val ((min1, max1), (min2, max2)) = (recursiveAssist(left), recursiveAssist(right))
-        (min1 && min2, max1 && max2)
-      case Disj(left, right) =>
-        val ((min1, max1), (min2, max2)) = (recursiveAssist(left), recursiveAssist(right))
-        (min1 || min2, max1 || max2)
-      case Neg(inner) => recursiveAssist(inner).bimap(b => !b, b => !b) // TODO verify this applies the map to both elems
-      case Complement(inner) => algBoolEval(inner).bimap(b => !b, b => !b) // TODO verify this applies the map to both elems
-      case TRUE => (true, true)
-      case FALSE => (false, false)
-    }
+      def recursiveAssist(subtree: BADTree[T]): (Boolean, Boolean) = subtree match {
+        case a@Action(_) if propActs.contains(a) => (false, true)
+        case a@Action(_) if oppActs.contains(a) => (true, false)
+        case a@Action(_) => throw new MatchError("Unexpected match error in algBoolEval recursion -- basic Action in neither propActs nor oppActs")
+        case Conj(left, right) =>
+          val ((min1, max1), (min2, max2)) = (recursiveAssist(left), recursiveAssist(right))
+          (min1 && min2, max1 && max2)
+        case Disj(left, right) =>
+          val ((min1, max1), (min2, max2)) = (recursiveAssist(left), recursiveAssist(right))
+          (min1 || min2, max1 || max2)
+        case Neg(inner) => recursiveAssist(inner).bimap(b => !b, b => !b) // TODO verify this applies the map to both elems
+        case Complement(inner) => algBoolEval(inner).bimap(b => !b, b => !b) // TODO verify this applies the map to both elems
+        case TRUE => (true, true)
+        case FALSE => (false, false)
+      }
 
       recursiveAssist(tree)
     }*/
