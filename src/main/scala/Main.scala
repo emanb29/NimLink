@@ -74,7 +74,7 @@ object Main extends App {
     Complement(t2)
   )
 
-  val tree = Disj(bribe, Disj(t, Disj(b, trick)))
+  val testtree = Disj(bribe, Disj(t, Disj(b, trick)))
   val probabilities: Map[Action[Player], (Double, Double)] = Map(
     is -> (0.2, 0.8),
     bs -> (0, 0.7),
@@ -104,14 +104,14 @@ object Main extends App {
     t2 -> 0
   )
 
-  //  println(tree)
-  //  println(allActionsInTree(tree))
-  //  println(algBoolEval(tree)) // should be false, true
-  //  println(algProbEval(tree, probabilities)) // should be 0, 0.97
-  //  println(algBoolEvalWithCost(tree, costs)) // should be ???
+  //  println(testtree)
+  //  println(allActionsInTree(testtree))
+  //  println(algBoolEval(testtree)) // should be false, true
+  //  println(algProbEval(testtree, probabilities)) // should be 0, 0.97
+  //  println(algBoolEvalWithCost(testtree, costs)) // should be ???
 
 
-  println(algProbEvalWithCost(tree, probabilities, costs))
+  println(algProbEvalWithCost(testtree, probabilities, costs))
   /** *
     * Pull out all basic actions from a tree into a pair of lists of actions: those of the proponent, and those of the opponent
     * NOTE: for linear trees, we could just use a pair of sets, since that's precisely the linear property
