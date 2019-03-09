@@ -104,14 +104,14 @@ object Main extends App {
     t2 -> 0
   )
 
-  println(tree)
-  println(allActionsInTree(tree))
-  println(algBoolEval(tree)) // should be false, true
-  println(algProbEval(tree, probabilities)) // should be 0, 0.97
-  println(algBoolEvalWithCost(tree, costs)) // should be ???
+  //  println(tree)
+  //  println(allActionsInTree(tree))
+  //  println(algBoolEval(tree)) // should be false, true
+  //  println(algProbEval(tree, probabilities)) // should be 0, 0.97
+  //  println(algBoolEvalWithCost(tree, costs)) // should be ???
 
 
-  println(algProbEvalWithCost(tree, probabilities, costs)) // should be 0, 0.97
+  println(algProbEvalWithCost(tree, probabilities, costs))
   /** *
     * Pull out all basic actions from a tree into a pair of lists of actions: those of the proponent, and those of the opponent
     * NOTE: for linear trees, we could just use a pair of sets, since that's precisely the linear property
@@ -231,7 +231,7 @@ object Main extends App {
   def MRMaxMin[Decider](Z: Set[(Decider, Double)])(implicit O: Ordering[Decider]): Set[(Decider, Double)] =
     Z.filter(pair => {
       val (x1, y1) = pair
-      (Z - pair).forall{case (x2, y2) => (O.gteq(x1, x2) || y1 < y2) && (O.gt(x1, x2) || y1 <= y2)}
+      (Z - pair).forall { case (x2, y2) => (O.gteq(x1, x2) || y1 < y2) && (O.gt(x1, x2) || y1 <= y2) }
     })
 
   /**
@@ -245,7 +245,7 @@ object Main extends App {
   def MRMinMin[Decider](Z: Set[(Decider, Double)])(implicit O: Ordering[Decider]): Set[(Decider, Double)] =
     Z.filter(pair => {
       val (x1, y1) = pair
-      (Z - pair).forall{case (x2, y2) => (O.lteq(x1, x2) || y1 < y2) && (O.lt(x1, x2) || y1 <= y2)}
+      (Z - pair).forall { case (x2, y2) => (O.lteq(x1, x2) || y1 < y2) && (O.lt(x1, x2) || y1 <= y2) }
     })
 
 
@@ -253,7 +253,7 @@ object Main extends App {
   : (Set[(Boolean, Double)], Set[(Boolean, Double)]) = {
     val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
 
-    def recursiveAssist(subtree: BADTree[T]): (Set[(Boolean, Double)], Set[(Boolean, Double)]) = subtree match {
+    def recursiveAssist(subtree: BADTree[Player]): (Set[(Boolean, Double)], Set[(Boolean, Double)]) = subtree match {
       case a@Action(_) if propActs.contains(a) => (
         MRMinMin(Set((false, 0), (true, cost(a)))),
         MRMaxMin(Set((false, 0), (true, cost(a)))),
@@ -298,7 +298,7 @@ object Main extends App {
           MRMaxMin(mins.map { case (actTaken, innerCost) => (!actTaken, innerCost) }),
         )
       case Complement(inner) =>
-        val (mins, maxes) = algBoolEvalWithCost(inner, cost)
+        val (mins, maxes) = recursiveAssist(inner) // TODO I don't like this since we lose the info of who is currently active
         (
           MRMinMin(maxes.map { case (actTaken, innerCost) => (!actTaken, innerCost) }),
           MRMaxMin(mins.map { case (actTaken, innerCost) => (!actTaken, innerCost) }),
@@ -315,7 +315,7 @@ object Main extends App {
   : (Set[(Double, Double)], Set[(Double, Double)]) = {
     val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
 
-    def recursiveAssist(subtree: BADTree[T]): (Set[(Double, Double)], Set[(Double, Double)]) = subtree match {
+    def recursiveAssist(subtree: BADTree[Player]): (Set[(Double, Double)], Set[(Double, Double)]) = subtree match {
       case a@Action(_) if propActs.contains(a) => (
         MRMinMin(Set((probabilities(a)._1, 0), (probabilities(a)._2, cost(a)))),
         MRMaxMin(Set((probabilities(a)._1, 0), (probabilities(a)._2, cost(a)))),
@@ -347,16 +347,16 @@ object Main extends App {
           (rightChance, rightCost) <- rightMins
         } yield (
           1 - ((1 - leftChance) * (1 - rightChance)),
-          leftCost + rightCost)
-        )
+          leftCost + rightCost
+        ))
 
         val maxSet: Set[(Double, Double)] = MRMaxMin(for {
           (leftChance, leftCost) <- leftMaxes
           (rightChance, rightCost) <- rightMaxes
         } yield (
           1 - ((1 - leftChance) * (1 - rightChance)),
-          leftCost + rightCost)
-        )
+          leftCost + rightCost
+        ))
         (minSet, maxSet)
       }
       case Neg(inner) =>
@@ -366,7 +366,7 @@ object Main extends App {
           MRMaxMin(mins.map { case (probability, treecost) => (1 - probability, treecost) }),
         )
       case Complement(inner) =>
-        val (mins, maxes) = algProbEvalWithCost(inner, probabilities, cost)
+        val (mins, maxes) = recursiveAssist(inner) // TODO I don't like this because we lost the info of who is currently active
         (
           MRMinMin(maxes.map { case (probability, treecost) => (1 - probability, treecost) }),
           MRMaxMin(mins.map { case (probability, treecost) => (1 - probability, treecost) }),
