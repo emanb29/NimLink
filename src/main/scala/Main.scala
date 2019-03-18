@@ -146,24 +146,6 @@ object Main extends App {
   }
 
   /** *
-    * Semantically evaluate a tree -- this is the most basic M(t)
-    *
-    * @param tree
-    * @tparam T the type/proponent of the tree -- by root node
-    * @return A pair of the minimum and maximum possible success values of the goal of the proponent (T)
-    */
-  @deprecated("Use algBoolEval instead -- it has the same result for polarity-consistent trees and runs in O(n) time instead of EXP")
-  def semBoolEval[T <: Player](tree: BADTree[T]): (Boolean, Boolean) = {
-    val (propActs, oppActs) = tree.leaves
-    val allPlayerActions: Seq[Action[Player]] = propActs ++ oppActs
-    // "for every boolean assignment"
-    // generate every boolean vector with len == # actions (ie all bool numbers up to 2^(# actions) - 1 )+
-    // zip each with actions and convert to Map
-    // analyze each finding min/max as applicable[?] TODO: read paper again for more details
-    ???
-  }
-
-  /** *
     * Algorithmically evaluate a tree -- this is the most basic INT(t) in the literature
     *
     * @param tree a polarity-consistent tree
