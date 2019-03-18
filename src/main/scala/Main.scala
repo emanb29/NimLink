@@ -37,8 +37,6 @@ object Main extends App {
     override def equals(obj: Any): Boolean = super.equals(obj) && uuid == obj.asInstanceOf[Action[T]].uuid
   }
 
-  // T <: Player so Action[T] should be upcast to Action[Player] safely
-
   final case class Conj[T <: Player](left: BADTree[T], right: BADTree[T]) extends BADTree[T] {
     override lazy val leaves: (List[Action[T]], List[Action[T#Other]]) = left.leaves.combine(right.leaves)
   }
@@ -316,7 +314,16 @@ object Main extends App {
     recursiveAssist(tree)
   }
 
-
+  /**
+    * Evaluate a tree with min/max success probabilities AND costs.
+    * @param tree
+    * @param probabilities
+    * @param cost
+    * @tparam T
+    * @return A pair of lists -- the first is the pareto-efficient solutions with the minimum success values for the
+    *         proponent, the second is the pareto-efficient solutions with the maximmum success values for the
+    *         proponent. The solutions are all in (probability, cost) format.
+    */
   def algProbEvalWithCost[T <: Player](tree: BADTree[T], probabilities: Action[Player] => (Double, Double), cost: Action[Player] => Double)
   : (Set[(Double, Double)], Set[(Double, Double)]) = {
     val (propActs, oppActs) = tree.leaves // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
