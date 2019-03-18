@@ -130,22 +130,6 @@ object Main extends App {
   println(algProbEvalWithCost(testtree, probabilities, costs))
 
   /** *
-    * Evaluate the tree recursively as a boolean expression, given a boolean map m(a). This is "Curvy B" in the literature
-    *
-    * @param tree
-    * @param actionBooleanVals A map of each basic action to its boolean value. This is m(a) (ie the combination of m_o and m_p) in the literature
-    * @tparam T the type/proponent of the tree -- by root node
-    * @return The boolean analysis/evaluation of the tree
-    */
-  def boolAnalyze[T <: Player](tree: BADTree[T], actionBooleanVals: Action[Player] => Boolean): Boolean = tree match {
-    case a@Action(_) => actionBooleanVals(a) // this is "m" in the literature
-    case Conj(left, right) => boolAnalyze(left, actionBooleanVals) && boolAnalyze(right, actionBooleanVals)
-    case Disj(left, right) => boolAnalyze(left, actionBooleanVals) || boolAnalyze(right, actionBooleanVals)
-    case Neg(neg) => !boolAnalyze(neg, actionBooleanVals)
-    case Complement(blocked) => !boolAnalyze(blocked, actionBooleanVals)
-  }
-
-  /** *
     * Algorithmically evaluate a tree -- this is the most basic INT(t) in the literature
     *
     * @param tree a polarity-consistent tree
