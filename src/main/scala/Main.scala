@@ -18,9 +18,18 @@ object Main extends App {
     override type Other = Attacker
   }
 
-  sealed trait BADTree[+T <: Player] // it means Binary Attack-Defense Tree, dammit!
+  sealed trait BADTree[+T <: Player] { // it means Binary Attack-Defense Tree, dammit!
+    /**
+      * All leaves in the tree. Should be implemented as lazy in all abstract cases
+      */
+    val leaves: (List[Action[T]], List[Action[T#Other]])
+    lazy val propActs: List[Action[T]] = leaves._1
+    lazy val oppActs: List[Action[T#Other]] = leaves._2
+  }
 
   final case class Action[+T <: Player](name: String = "") extends BADTree[T] {
+    override val leaves: (List[Action[T]], List[Action[T#Other]]) = (List(this), List.empty)
+
     override def toString: String = name
 
     private val uuid: UUID = UUID.randomUUID()
@@ -30,15 +39,32 @@ object Main extends App {
 
   // T <: Player so Action[T] should be upcast to Action[Player] safely
 
-  final case class Conj[T <: Player](left: BADTree[T], right: BADTree[T]) extends BADTree[T]
+  final case class Conj[T <: Player](left: BADTree[T], right: BADTree[T]) extends BADTree[T] {
+    override lazy val leaves: (List[Action[T]], List[Action[T#Other]]) = left.leaves.combine(right.leaves)
+  }
 
-  final case class Disj[T <: Player](left: BADTree[T], right: BADTree[T]) extends BADTree[T]
+  final case class Disj[T <: Player](left: BADTree[T], right: BADTree[T]) extends BADTree[T] {
+    override lazy val leaves: (List[Action[T]], List[Action[T#Other]]) = left.leaves.combine(right.leaves)
+  }
 
   // TODO: add polarity evaluation function
-  final case class Neg[T <: Player](neg: BADTree[T]) extends BADTree[T] // invert goal (eg maximize -> minimize)
-  final case class Complement[T <: Player](blocked: BADTree[T]) extends BADTree[T#Other] // invert goal and switch player
-  final case object TRUE extends BADTree[Player] // trivially-successful action [Asl16]
-  final case object FALSE extends BADTree[Player] // trivially-failed action [Asl16]
+  final case class Neg[T <: Player](neg: BADTree[T]) extends BADTree[T] { // invert goal (eg maximize -> minimize)
+    override lazy val leaves: (List[Action[T]], List[Action[T#Other]]) = neg.leaves
+  }
+
+  final case class Complement[T <: Player](blocked: BADTree[T]) extends BADTree[T#Other] {
+    // invert goal and switch player
+    override lazy val leaves: (List[Action[T#Other]], List[Action[T#Other#Other]]) = blocked.leaves.swap
+      .asInstanceOf[(List[Action[T#Other]], List[Action[T#Other#Other]])] // NOTE this is a safe cast, since the T#Other#Other = T
+  }
+
+  final case object TRUE extends BADTree[Player] { // trivially-successful action [Asl16]
+    override lazy val leaves: (List[Action[Player]], List[Action[Player#Other]]) = ???
+  }
+
+  final case object FALSE extends BADTree[Player] { // trivially-failed action [Asl16]
+    override lazy val leaves: (List[Action[Player]], List[Action[Player#Other]]) = ???
+  }
 
   val is: Action[Attacker] = Action("is: identify bribable employee")
   val bs: Action[Attacker] = Action("bs: bribe employee")
@@ -105,33 +131,13 @@ object Main extends App {
   )
 
   //  println(testtree)
-  //  println(allActionsInTree(testtree))
+  //  println(testtree.leaves)
   //  println(algBoolEval(testtree)) // should be false, true
   //  println(algProbEval(testtree, probabilities)) // should be 0, 0.97
   //  println(algBoolEvalWithCost(testtree, costs)) // should be ???
 
 
   println(algProbEvalWithCost(testtree, probabilities, costs))
-  /** *
-    * Pull out all basic actions from a tree into a pair of lists of actions: those of the proponent, and those of the opponent
-    * NOTE: for linear trees, we could just use a pair of sets, since that's precisely the linear property
-    *
-    * @param tree
-    * @tparam T
-    * @return
-    */
-  def allActionsInTree[T <: Player](tree: BADTree[T]): (List[Action[T]], List[Action[T#Other]]) = {
-    tree match {
-      case a@Action(_) => (List(a), List.empty)
-      case Conj(left, right) => allActionsInTree(left).combine(allActionsInTree(right))
-      case Disj(left, right) => allActionsInTree(left).combine(allActionsInTree(right))
-      case Neg(neg) => allActionsInTree(neg)
-      case Complement(blocked) => allActionsInTree(blocked).swap
-        .asInstanceOf[(List[Action[T]], List[Action[T#Other]])] // NOTE this is a safe cast, since the T#Other#Other = T
-      case TRUE | FALSE => (List.empty, List.empty)
-      case _ => throw new MatchError("Unexpected match error in action finder -- probably a failed Complement match")
-    }
-  }
 
   /** *
     * Evaluate the tree recursively as a boolean expression, given a boolean map m(a). This is "Curvy B" in the literature
@@ -160,7 +166,7 @@ object Main extends App {
     */
   @deprecated("Use algBoolEval instead -- it has the same result for polarity-consistent trees and runs in O(n) time instead of EXP")
   def semBoolEval[T <: Player](tree: BADTree[T]): (Boolean, Boolean) = {
-    val (propActs, oppActs) = allActionsInTree(tree)
+    val (propActs, oppActs) = tree.leaves
     val allPlayerActions: Seq[Action[Player]] = propActs ++ oppActs
     // "for every boolean assignment"
     // generate every boolean vector with len == # actions (ie all bool numbers up to 2^(# actions) - 1 )+
@@ -198,7 +204,7 @@ object Main extends App {
     * @return A pair of the minimum and maximum possible success values of the goal of the proponent (T)
     */
   def algProbEval[T <: Player](tree: BADTree[T], successChance: Action[Player] => (Double, Double)): (Double, Double) = {
-    val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
+    val (propActs, oppActs) = tree.leaves // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
 
     def recursiveAssist(subtree: BADTree[T]): (Double, Double) = subtree match {
       case a@Action(_) if propActs.contains(a) => successChance(a)
@@ -251,7 +257,7 @@ object Main extends App {
 
   def algBoolEvalWithCost[T <: Player](tree: BADTree[T], cost: Action[Player] => Double)
   : (Set[(Boolean, Double)], Set[(Boolean, Double)]) = {
-    val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
+    val (propActs, oppActs) = tree.leaves // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
 
     def recursiveAssist(subtree: BADTree[Player]): (Set[(Boolean, Double)], Set[(Boolean, Double)]) = subtree match {
       case a@Action(_) if propActs.contains(a) => (
@@ -313,7 +319,7 @@ object Main extends App {
 
   def algProbEvalWithCost[T <: Player](tree: BADTree[T], probabilities: Action[Player] => (Double, Double), cost: Action[Player] => Double)
   : (Set[(Double, Double)], Set[(Double, Double)]) = {
-    val (propActs, oppActs) = allActionsInTree(tree) // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
+    val (propActs, oppActs) = tree.leaves // disclaimer -- this can actually make it worst-case (and I think average-case) quadratic
 
     def recursiveAssist(subtree: BADTree[Player]): (Set[(Double, Double)], Set[(Double, Double)]) = subtree match {
       case a@Action(_) if propActs.contains(a) => (
