@@ -56,14 +56,6 @@ object Main extends App {
       .asInstanceOf[(List[Action[T#Other]], List[Action[T#Other#Other]])] // NOTE this is a safe cast, since the T#Other#Other = T
   }
 
-  final case object TRUE extends BADTree[Player] { // trivially-successful action [Asl16]
-    override lazy val leaves: (List[Action[Player]], List[Action[Player#Other]]) = ???
-  }
-
-  final case object FALSE extends BADTree[Player] { // trivially-failed action [Asl16]
-    override lazy val leaves: (List[Action[Player]], List[Action[Player#Other]]) = ???
-  }
-
   val is: Action[Attacker] = Action("is: identify bribable employee")
   val bs: Action[Attacker] = Action("bs: bribe employee")
 
@@ -151,8 +143,6 @@ object Main extends App {
     case Disj(left, right) => boolAnalyze(left, actionBooleanVals) || boolAnalyze(right, actionBooleanVals)
     case Neg(neg) => !boolAnalyze(neg, actionBooleanVals)
     case Complement(blocked) => !boolAnalyze(blocked, actionBooleanVals)
-    case TRUE => true
-    case FALSE => false
   }
 
   /** *
@@ -217,8 +207,6 @@ object Main extends App {
           1 - (1 - max1) * (1 - max2))
       case Neg(inner) => recursiveAssist(inner).bimap(1 - _, 1 - _)
       case Complement(inner) => algProbEval(inner, successChance).bimap(1 - _, 1 - _)
-      case TRUE => (1, 1)
-      case FALSE => (0, 0)
     }
 
     recursiveAssist(tree)
@@ -307,8 +295,6 @@ object Main extends App {
           MRMinMin(maxes.map { case (actTaken, innerCost) => (!actTaken, innerCost) }),
           MRMaxMin(mins.map { case (actTaken, innerCost) => (!actTaken, innerCost) }),
         )
-      case TRUE => (Set((true, 0)), Set((true, 0)))
-      case FALSE => (Set((false, 0)), Set((false, 0)))
     }
 
     recursiveAssist(tree)
@@ -384,8 +370,6 @@ object Main extends App {
           MRMinMin(maxes.map { case (probability, treecost) => (1 - probability, treecost) }),
           MRMaxMin(mins.map { case (probability, treecost) => (1 - probability, treecost) }),
         )
-      case TRUE => (Set((1, 0)), Set((1, 0)))
-      case FALSE => (Set((0, 0)), Set((0, 0)))
     }
 
     recursiveAssist(tree)
