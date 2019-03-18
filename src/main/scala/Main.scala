@@ -324,7 +324,7 @@ object Main extends App {
         MRMinMin(Set((probabilities(a)._2, 0))), // TODO is this as strictly uneccesary as it appears?
         MRMaxMin(Set((probabilities(a)._1, 0)))
       )
-      case a@Action(_) => throw new MatchError("Unexpected match error in algBoolEvalWithCost recursion -- basic Action in neither propActs nor oppActs")
+      case a@Action(_) => throw new MatchError("Unexpected match error in algProbEvalWithCost recursion -- basic Action in neither propActs nor oppActs")
       case Conj(left, right) => {
         val (leftMins, leftMaxes) = recursiveAssist(left) // this is (V_1, W_1) in Aslanyan's paper
         val (rightMins, rightMaxes) = recursiveAssist(right) // this is (V_2, W_2) in Aslanyan's paper
